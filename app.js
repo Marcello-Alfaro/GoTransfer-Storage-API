@@ -15,6 +15,8 @@ const cert = fs.readFileSync('server.cert');
 
 const app = express();
 
+if (!fs.existsSync('storage')) fs.mkdirSync('storage');
+
 const socket = io(`${API_URL}${SOCKET_NAMESPACE}`, {
   auth: {
     token: jwt.sign({ message: 'Authenticate' }, JWT_SECRET),
