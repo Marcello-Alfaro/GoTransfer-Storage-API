@@ -1,0 +1,25 @@
+{
+  "name": "client",
+  "version": "1.0.0",
+  "description": "",
+  "main": "app.js",
+  "type": "module",
+  "scripts": {
+    "start": "node app.js",
+    "start:dev": "nodemon app.js"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "express": "^4.18.1",
+    "jsonwebtoken": "^8.5.1",
+    "jszip": "^3.10.1",
+    "node-fetch": "^3.2.10",
+    "rimraf": "^3.0.2",
+    "socket.io-client": "^4.5.2"
+  },
+  "devDependencies": {
+    "nodemon": "^2.0.20"
+  }
+}
