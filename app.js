@@ -2,7 +2,6 @@ import express from 'express';
 import { API_URL, JWT_SECRET, PORT, SOCKET_NAMESPACE } from './config/config.js';
 import io from 'socket.io-client';
 import https from 'https';
-import http from 'http';
 import fs from 'fs';
 import fsp from 'fs/promises';
 import fetch from 'node-fetch';
@@ -14,8 +13,6 @@ const key = fs.readFileSync('server.key');
 const cert = fs.readFileSync('server.cert');
 
 const app = express();
-
-if (!fs.existsSync('storage')) fs.mkdirSync('storage');
 
 const socket = io(`${API_URL}${SOCKET_NAMESPACE}`, {
   auth: {
@@ -31,13 +28,17 @@ socket.on('connect', () => {
   console.log('Connection to main server established!');
 });
 
-socket.on('send-files', (data) => {
+socket.on('send-files', async (data) => {
   const { dirId, files } = data;
-  if (!fs.existsSync(`storage/${dirId}`)) fs.mkdirSync(`storage/${dirId}`);
+  try {
+    await fsp.access(`storage/${dirId}`);
+  } catch (err) {
+    await fsp.mkdir(`storage/${dirId}`, { recursive: true });
+  }
 
   files.forEach((entry, index, arr) => {
     const file = fs.createWriteStream(`storage/${dirId}/${entry.name}`);
-    http.get(`${API_URL}/files/transfer/${dirId}/${entry.fileId}?isAuth=false`, (res) => {
+    https.get(`${API_URL}/files/transfer/${dirId}/${entry.fileId}?isAuth=false`, (res) => {
       res.pipe(file);
       file.on('finish', () => {
         file.close();
