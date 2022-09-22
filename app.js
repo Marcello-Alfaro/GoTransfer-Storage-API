@@ -29,38 +29,50 @@ socket.on('connect', () => {
 });
 
 socket.on('send-files', async (data) => {
-  const { dirId, files } = data;
   try {
-    await fsp.access(`storage/${dirId}`);
-  } catch (err) {
-    await fsp.mkdir(`storage/${dirId}`, { recursive: true });
-  }
+    const { dirId, files } = data;
+    try {
+      await fsp.access(`storage/${dirId}`);
+    } catch (err) {
+      await fsp.mkdir(`storage/${dirId}`, { recursive: true });
+    }
 
-  files.forEach((entry, index, arr) => {
-    const file = fs.createWriteStream(`storage/${dirId}/${entry.name}`);
-    https.get(`${API_URL}/files/transfer/${dirId}/${entry.fileId}?isAuth=false`, (res) => {
-      res.pipe(file);
-      file.on('finish', () => {
-        file.close();
-        if (index === arr.length - 1) return socket.emit(`transfer-${dirId}-completed`);
+    files.forEach((entry, index, arr) => {
+      const file = fs.createWriteStream(`storage/${dirId}/${entry.name}`);
+      https.get(`${API_URL}/files/transfer/${dirId}/${entry.fileId}?isAuth=false`, (res) => {
+        res.pipe(file);
+        file.on('finish', () => {
+          file.close();
+          if (index === arr.length - 1) return socket.emit(`transfer-${dirId}-completed`);
+        });
       });
     });
-  });
+  } catch (err) {
+    console.error(err);
+  }
 });
 
 socket.on('get-file', async (data) => {
-  const { dirId, fileId, name } = data;
+  try {
+    const { dirId, fileId, name } = data;
 
-  const filepath = `storage/${dirId}/${name}`;
-  const file = fs.createReadStream(filepath);
-  const response = await fetch(`${API_URL}/files/get-file?isAuth=false&fileId=${fileId}`, {
-    method: 'POST',
-    body: file,
-  });
+    const filepath = `storage/${dirId}/${name}`;
+    const file = fs.createReadStream(filepath);
+    const response = await fetch(`${API_URL}/files/get-file?isAuth=false&fileId=${fileId}`, {
+      method: 'POST',
+      body: file,
+    });
 
-  const { success } = await response.json();
-  if (success) return await fsp.unlink(filepath);
+    const { success } = await response.json();
+    if (success) return await fsp.unlink(filepath);
+  } catch (err) {
+    console.error(err);
+  }
 });
+
+socket.on(`dir-files-downloaded`, ({ dirId }) =>
+  rimraf(`storage/${dirId}`, (err) => err && console.error(err))
+);
 
 socket.on('get-all-files', async (data) => {
   try {
