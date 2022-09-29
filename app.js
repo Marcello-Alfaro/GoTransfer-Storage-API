@@ -6,7 +6,6 @@ import fs from 'fs';
 import fsp from 'fs/promises';
 import fetch from 'node-fetch';
 import JSZip from 'jszip';
-import rimraf from 'rimraf';
 import jwt from 'jsonwebtoken';
 
 const key = fs.readFileSync('server.key');
@@ -54,13 +53,14 @@ socket.on('send-files', async (data) => {
 
 socket.on('get-file', async (data) => {
   try {
-    const { dirId, fileId, name } = data;
+    const { dirId, name } = data;
 
     const filepath = `storage/${dirId}/${name}`;
-    const file = fs.createReadStream(filepath);
-    const response = await fetch(`${API_URL}/files/get-file?isAuth=false&fileId=${fileId}`, {
+    const body = fs.createReadStream(filepath);
+
+    const response = await fetch(`${API_URL}/files/get-file?isAuth=false`, {
       method: 'POST',
-      body: file,
+      body,
     });
 
     const { success } = await response.json();
@@ -70,8 +70,9 @@ socket.on('get-file', async (data) => {
   }
 });
 
-socket.on(`dir-files-downloaded`, ({ dirId }) =>
-  rimraf(`storage/${dirId}`, (err) => err && console.error(err))
+socket.on(
+  `dir-files-downloaded`,
+  async ({ dirId }) => await fsp.rm(`storage/${dirId}`, { recursive: true, force: true })
 );
 
 socket.on('get-all-files', async (data) => {
@@ -84,20 +85,26 @@ socket.on('get-all-files', async (data) => {
     );
     const body = zip.generateNodeStream({ type: 'nodebuffer', streamFiles: true });
 
-    const response = await fetch(`${API_URL}/files/get-all-files?isAuth=false&dirId=${dirId}`, {
+    const response = await fetch(`${API_URL}/files/get-all-files?isAuth=false`, {
       method: 'POST',
       body,
     });
 
     const { success } = await response.json();
-    if (success) return rimraf(`storage/${dirId}`, (err) => err);
+
+    if (success) return await fsp.rm(`storage/${dirId}`, { recursive: true, force: true });
   } catch (err) {
-    console.log(err);
+    console.error(err);
   }
 });
 
+socket.on(
+  'file-expired',
+  async ({ dirId }) => await fsp.rm(`storage/${dirId}`, { recursive: true, force: true })
+);
+
 socket.on('connect_error', (err) => {
-  console.log(`connect_error due to ${err.message}`);
+  console.error(`connect_error due to ${err.message}`);
 });
 
 process.on('uncaughtException', (err) => {
