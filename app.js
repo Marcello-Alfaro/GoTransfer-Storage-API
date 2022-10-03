@@ -12,10 +12,11 @@ const key = fs.readFileSync('server.key');
 const cert = fs.readFileSync('server.cert');
 
 const app = express();
+const token = jwt.sign({ message: 'Authenticate' }, JWT_SECRET);
 
 const socket = io(`${API_URL}${SOCKET_NAMESPACE}`, {
   auth: {
-    token: jwt.sign({ message: 'Authenticate' }, JWT_SECRET),
+    token,
   },
 });
 
@@ -27,25 +28,23 @@ socket.on('connect', () => {
   console.log('Connection to main server established!');
 });
 
-socket.on('send-files', async (data) => {
+socket.on('alloc-storage-server', async (data) => {
   try {
-    const { dirId, files } = data;
+    const { dirId, filename } = data;
     try {
       await fsp.access(`storage/${dirId}`);
     } catch (err) {
       await fsp.mkdir(`storage/${dirId}`, { recursive: true });
     }
+    https.get(
+      `${API_URL}/files/transfer/storage-server?Authorization=Bearer ${token}`,
+      async (res) => {
+        if (res.statusCode !== 200)
+          return await fsp.rm(`storage/${dirId}`, { recursive: true, force: true });
 
-    files.forEach((entry, index, arr) => {
-      const file = fs.createWriteStream(`storage/${dirId}/${entry.name}`);
-      https.get(`${API_URL}/files/transfer/${dirId}/${entry.fileId}?isAuth=false`, (res) => {
-        res.pipe(file);
-        file.on('finish', () => {
-          file.close();
-          if (index === arr.length - 1) return socket.emit(`transfer-${dirId}-completed`);
-        });
-      });
-    });
+        res.pipe(fs.createWriteStream(`storage/${dirId}/${filename}`));
+      }
+    );
   } catch (err) {
     console.error(err);
   }
@@ -99,7 +98,7 @@ socket.on('get-all-files', async (data) => {
 });
 
 socket.on(
-  'file-expired',
+  'unlink-file',
   async ({ dirId }) => await fsp.rm(`storage/${dirId}`, { recursive: true, force: true })
 );
 
