@@ -57,13 +57,10 @@ socket.on('get-file', async (data) => {
     const filepath = `storage/${dirId}/${name}`;
     const body = fs.createReadStream(filepath);
 
-    const response = await fetch(`${API_URL}/files/get-file?isAuth=false`, {
+    await fetch(`${API_URL}/files/get-file?isAuth=false`, {
       method: 'POST',
       body,
     });
-
-    const { success } = await response.json();
-    if (success) return await fsp.unlink(filepath);
   } catch (err) {
     console.error(err);
   }
@@ -84,14 +81,10 @@ socket.on('get-all-files', async (data) => {
     );
     const body = zip.generateNodeStream({ type: 'nodebuffer', streamFiles: true });
 
-    const response = await fetch(`${API_URL}/files/get-all-files?isAuth=false`, {
+    await fetch(`${API_URL}/files/get-all-files?isAuth=false`, {
       method: 'POST',
       body,
     });
-
-    const { success } = await response.json();
-
-    if (success) return await fsp.rm(`storage/${dirId}`, { recursive: true, force: true });
   } catch (err) {
     console.error(err);
   }
