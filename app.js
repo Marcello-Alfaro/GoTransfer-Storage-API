@@ -52,7 +52,7 @@ socket.on('alloc-storage-server', async (data) => {
 
 socket.on('get-file', async (data) => {
   try {
-    const { dirId, name } = data;
+    const { dirId, fileId, name } = data;
 
     const filepath = `storage/${dirId}/${name}`;
     const body = fs.createReadStream(filepath);
@@ -60,6 +60,9 @@ socket.on('get-file', async (data) => {
     await fetch(`${API_URL}/files/get-file?isAuth=false`, {
       method: 'POST',
       body,
+      headers: {
+        fileId,
+      },
     });
   } catch (err) {
     console.error(err);
@@ -84,6 +87,9 @@ socket.on('get-all-files', async (data) => {
     await fetch(`${API_URL}/files/get-all-files?isAuth=false`, {
       method: 'POST',
       body,
+      headers: {
+        dirId,
+      },
     });
   } catch (err) {
     console.error(err);
