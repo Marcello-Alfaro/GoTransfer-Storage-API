@@ -2,6 +2,7 @@ import express from 'express';
 import { API_URL, JWT_SECRET, PORT, SOCKET_NAMESPACE } from './config/config.js';
 import io from 'socket.io-client';
 import https from 'https';
+import http from 'http';
 import fs from 'fs';
 import fsp from 'fs/promises';
 import fetch from 'node-fetch';
@@ -30,14 +31,14 @@ socket.on('connect', () => {
 
 socket.on('alloc-storage-server', async (data) => {
   try {
-    const { dirId, filename } = data;
+    const { request, dirId, filename } = data;
     try {
       await fsp.access(`storage/${dirId}`);
     } catch (err) {
       await fsp.mkdir(`storage/${dirId}`, { recursive: true });
     }
-    https.get(
-      `${API_URL}/files/transfer/storage-server?Authorization=Bearer ${token}`,
+    http.get(
+      `${API_URL}/files/transfer/storage-server?Authorization=Bearer ${token}&request=${request}`,
       async (res) => {
         if (res.statusCode !== 200)
           return await fsp.rm(`storage/${dirId}`, { recursive: true, force: true });
@@ -52,16 +53,15 @@ socket.on('alloc-storage-server', async (data) => {
 
 socket.on('get-file', async (data) => {
   try {
-    const { dirId, fileId, name } = data;
+    const { request, dirId, name } = data;
 
-    const filepath = `storage/${dirId}/${name}`;
-    const body = fs.createReadStream(filepath);
+    const body = fs.createReadStream(`storage/${dirId}/${name}`);
 
     await fetch(`${API_URL}/files/get-file?isAuth=false`, {
       method: 'POST',
       body,
       headers: {
-        fileId,
+        request,
       },
     });
   } catch (err) {
@@ -69,16 +69,13 @@ socket.on('get-file', async (data) => {
   }
 });
 
-socket.on(
-  `dir-files-downloaded`,
-  async ({ dirId }) => await fsp.rm(`storage/${dirId}`, { recursive: true, force: true })
-);
-
 socket.on('get-all-files', async (data) => {
   try {
-    const { dirId, title, Files } = data;
+    const { request, dirId, title, Files } = data;
+
     const zip = new JSZip();
     const folder = zip.folder(title);
+
     Files.forEach((entry) =>
       folder.file(entry.name, fs.createReadStream(`storage/${dirId}/${entry.name}`))
     );
@@ -88,7 +85,7 @@ socket.on('get-all-files', async (data) => {
       method: 'POST',
       body,
       headers: {
-        dirId,
+        request,
       },
     });
   } catch (err) {
