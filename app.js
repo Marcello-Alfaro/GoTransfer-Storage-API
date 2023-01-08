@@ -30,7 +30,7 @@ socket.on('connect', () => {
 
 socket.on('alloc-storage-server', async (data) => {
   try {
-    const { dirId, filename, payload } = data;
+    const { dirId, filename, chunk } = data;
 
     try {
       await fsp.access(`storage/${dirId}`);
@@ -38,7 +38,7 @@ socket.on('alloc-storage-server', async (data) => {
       await fsp.mkdir(`storage/${dirId}`, { recursive: true });
     }
 
-    const buffer = new Buffer.from(payload);
+    const buffer = new Buffer.from(chunk);
 
     fs.appendFile(`storage/${dirId}/${filename}`, buffer, (err) => {
       if (err) throw err;
