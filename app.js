@@ -30,7 +30,7 @@ socket.on('connect', () => {
 
 socket.on('alloc-storage-server', async (data) => {
   try {
-    const { dirId, filename, chunk } = data;
+    const { dirId, filename, part, chunk } = data;
 
     try {
       await fsp.access(`storage/${dirId}`);
@@ -39,10 +39,9 @@ socket.on('alloc-storage-server', async (data) => {
     }
 
     const buffer = new Buffer.from(chunk);
+    await fsp.appendFile(`storage/${dirId}/${filename}`, buffer);
 
-    fs.appendFile(`storage/${dirId}/${filename}`, buffer, (err) => {
-      if (err) throw err;
-    });
+    socket.emit(`${filename}${part}`, `Got part #${part} - File ${filename}`);
   } catch (err) {
     console.error(err);
   }
