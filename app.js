@@ -49,47 +49,40 @@ socket.on('alloc-storage-server', async (data) => {
 
 socket.on('get-file', async (data) => {
   try {
-    const {
-      requestId,
-      dirId,
-      file: { fileId, rawsize: size },
-    } = data;
+    const { requestId, type, dirId } = data;
 
-    const body = fs.createReadStream(`storage/${dirId}/${fileId}`);
+    if (type === 'single') {
+      const { fileId } = data;
+      const body = fs.createReadStream(`storage/${dirId}/${fileId}`);
 
-    await fetch(`${API_URL}/files/get-file?isAuth=false`, {
-      method: 'POST',
-      body,
-      headers: {
-        requestId,
-        'Content-Length': size,
-      },
-    });
-  } catch (err) {
-    console.error(err);
-  }
-});
+      await fetch(`${API_URL}/files/get-file?isAuth=false`, {
+        method: 'PUT',
+        body,
+        headers: {
+          requestId,
+        },
+      });
+    }
 
-socket.on('get-all-files', async (data) => {
-  try {
-    const { requestId, dirId, title, Files } = data;
+    if (type === 'multiple') {
+      const { title, Files } = data;
 
-    const zip = new JSZip();
-    const folder = zip.folder(title);
+      const zip = new JSZip();
+      const folder = zip.folder(title);
 
-    Files.forEach((entry) =>
-      folder.file(entry.name, fs.createReadStream(`storage/${dirId}/${entry.fileId}`))
-    );
-    const body = zip.generateNodeStream({ streamFiles: true });
+      Files.forEach((entry) =>
+        folder.file(entry.name, fs.createReadStream(`storage/${dirId}/${entry.fileId}`))
+      );
+      const body = zip.generateNodeStream({ streamFiles: true });
 
-    await fetch(`${API_URL}/files/get-all-files?isAuth=false`, {
-      agent: new https.Agent({ keepAlive: true }),
-      method: 'PUT',
-      body,
-      headers: {
-        requestId,
-      },
-    });
+      await fetch(`${API_URL}/files/get-file?isAuth=false`, {
+        method: 'PUT',
+        body,
+        headers: {
+          requestId,
+        },
+      });
+    }
   } catch (err) {
     console.error(err);
   }
