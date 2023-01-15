@@ -49,7 +49,11 @@ socket.on('alloc-storage-server', async (data) => {
 
 socket.on('get-file', async (data) => {
   try {
-    const { requestId, dirId, fileId } = data;
+    const {
+      requestId,
+      dirId,
+      file: { fileId, rawsize: size },
+    } = data;
 
     const body = fs.createReadStream(`storage/${dirId}/${fileId}`);
 
@@ -58,6 +62,7 @@ socket.on('get-file', async (data) => {
       body,
       headers: {
         requestId,
+        'Content-Length': size,
       },
     });
   } catch (err) {
@@ -78,7 +83,8 @@ socket.on('get-all-files', async (data) => {
     const body = zip.generateNodeStream({ streamFiles: true });
 
     await fetch(`${API_URL}/files/get-all-files?isAuth=false`, {
-      method: 'POST',
+      agent: new https.Agent({ keepAlive: true }),
+      method: 'PUT',
       body,
       headers: {
         requestId,
