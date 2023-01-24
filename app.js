@@ -12,7 +12,7 @@ const key = fs.readFileSync('server.key');
 const cert = fs.readFileSync('server.cert');
 
 const app = express();
-const token = jwt.sign({ message: 'Authenticate' }, JWT_SECRET);
+const token = jwt.sign('SYN', JWT_SECRET);
 
 const socket = io(`${API_URL}${SOCKET_NAMESPACE}`, {
   auth: {
@@ -30,7 +30,7 @@ socket.on('connect', () => {
 
 socket.on('alloc-storage-server', async (data) => {
   try {
-    const { dirId, filename, part, chunk } = data;
+    const { filePartId, dirId, filename, chunk } = data;
 
     try {
       await fsp.access(`storage/${dirId}`);
@@ -41,7 +41,7 @@ socket.on('alloc-storage-server', async (data) => {
     const buffer = new Buffer.from(chunk);
     await fsp.appendFile(`storage/${dirId}/${filename}`, buffer);
 
-    socket.emit(`${filename}${part}`, `Got part #${part} - File ${filename}`);
+    socket.emit(filePartId, `ACK ${filePartId}`);
   } catch (err) {
     console.error(err);
   }
@@ -49,40 +49,28 @@ socket.on('alloc-storage-server', async (data) => {
 
 socket.on('get-file', async (data) => {
   try {
-    const { requestId, type, dirId } = data;
+    const { requestId, single, dirId } = data;
 
-    if (type === 'single') {
-      const { fileId } = data;
-      const body = fs.createReadStream(`storage/${dirId}/${fileId}`);
+    const body = single
+      ? fs.createReadStream(`storage/${dirId}/${data.fileId}`)
+      : (() => {
+          const zip = new JSZip();
+          const folder = zip.folder(data.title);
 
-      await fetch(`${API_URL}/files/get-file?isAuth=false`, {
-        method: 'PUT',
-        body,
-        headers: {
-          requestId,
-        },
-      });
-    }
+          data.Files.forEach((entry) =>
+            folder.file(entry.name, fs.createReadStream(`storage/${dirId}/${entry.fileId}`))
+          );
+          return zip.generateNodeStream({ streamFiles: true });
+        })();
 
-    if (type === 'multiple') {
-      const { title, Files } = data;
-
-      const zip = new JSZip();
-      const folder = zip.folder(title);
-
-      Files.forEach((entry) =>
-        folder.file(entry.name, fs.createReadStream(`storage/${dirId}/${entry.fileId}`))
-      );
-      const body = zip.generateNodeStream({ streamFiles: true });
-
-      await fetch(`${API_URL}/files/get-file?isAuth=false`, {
-        method: 'PUT',
-        body,
-        headers: {
-          requestId,
-        },
-      });
-    }
+    await fetch(`${API_URL}/files/get-file`, {
+      method: 'PUT',
+      body,
+      headers: {
+        requestId,
+        Authorization: `Bearer ${token}`,
+      },
+    });
   } catch (err) {
     console.error(err);
   }
