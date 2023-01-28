@@ -4,6 +4,7 @@ import io from 'socket.io-client';
 import https from 'https';
 import fs from 'fs';
 import fsp from 'fs/promises';
+import { pipeline } from 'stream/promises';
 import fetch from 'node-fetch';
 import JSZip from 'jszip';
 import jwt from 'jsonwebtoken';
@@ -24,13 +25,11 @@ https
   .createServer({ key, cert }, app)
   .listen(PORT, () => console.log(`Server started on port: ${PORT}`));
 
-socket.on('connect', () => {
-  console.log('Connection to main server established!');
-});
+socket.on('connect', () => console.log('Connection to main server established!'));
 
 socket.on('alloc-storage-server', async (data) => {
   try {
-    const { filePartId, dirId, filename, chunk } = data;
+    const { filePartId, dirId, filename } = data;
 
     try {
       await fsp.access(`storage/${dirId}`);
@@ -38,8 +37,14 @@ socket.on('alloc-storage-server', async (data) => {
       await fsp.mkdir(`storage/${dirId}`, { recursive: true });
     }
 
-    const buffer = new Buffer.from(chunk);
-    await fsp.appendFile(`storage/${dirId}/${filename}`, buffer);
+    const res = await fetch(`${API_URL}/files/transfer/storage-server`, {
+      headers: {
+        Authorization: `Bearer ${token}`,
+        filePartId,
+      },
+    });
+
+    await pipeline(res.body, fs.createWriteStream(`storage/${dirId}/${filename}`, { flags: 'a' }));
 
     socket.emit(filePartId, `ACK ${filePartId}`);
   } catch (err) {
