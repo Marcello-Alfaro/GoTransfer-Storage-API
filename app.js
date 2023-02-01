@@ -27,10 +27,8 @@ https
 
 socket.on('connect', () => console.log('Connection to main server established!'));
 
-socket.on('alloc-storage-server', async (data) => {
+socket.on('alloc-storage-server', async ({ filePartId, dirId, filename }) => {
   try {
-    const { filePartId, dirId, filename } = data;
-
     try {
       await fsp.access(`storage/${dirId}`);
     } catch (err) {
@@ -49,6 +47,7 @@ socket.on('alloc-storage-server', async (data) => {
     socket.emit(filePartId, `ACK ${filePartId}`);
   } catch (err) {
     console.error(err);
+    await fsp.rm(`storage/${dirId}`, { recursive: true, force: true });
   }
 });
 
