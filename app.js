@@ -9,9 +9,11 @@ import jwt from 'jsonwebtoken';
 
 console.log('Storage server started');
 
+const token = jwt.sign('SYN', JWT_SECRET);
+
 const socket = io(`${API_URL}${SOCKET_NAMESPACE}`, {
   auth: {
-    token: jwt.sign('SYN', JWT_SECRET),
+    token,
   },
 });
 
