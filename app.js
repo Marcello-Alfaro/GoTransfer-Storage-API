@@ -1,7 +1,5 @@
-import express from 'express';
-import { API_URL, JWT_SECRET, PORT, SOCKET_NAMESPACE } from './config/config.js';
+import { API_URL, JWT_SECRET, SOCKET_NAMESPACE } from './config/config.js';
 import io from 'socket.io-client';
-import https from 'https';
 import fs from 'fs';
 import fsp from 'fs/promises';
 import { pipeline } from 'stream/promises';
@@ -9,21 +7,13 @@ import fetch from 'node-fetch';
 import JSZip from 'jszip';
 import jwt from 'jsonwebtoken';
 
-const key = fs.readFileSync('server.key');
-const cert = fs.readFileSync('server.cert');
-
-const app = express();
-const token = jwt.sign('SYN', JWT_SECRET);
+console.log('Storage server started');
 
 const socket = io(`${API_URL}${SOCKET_NAMESPACE}`, {
   auth: {
-    token,
+    token: jwt.sign('SYN', JWT_SECRET),
   },
 });
-
-https
-  .createServer({ key, cert }, app)
-  .listen(PORT, () => console.log(`Server started on port: ${PORT}`));
 
 socket.on('connect', () => console.log('Connection to main server established!'));
 
@@ -35,14 +25,14 @@ socket.on('alloc-storage-server', async ({ filePartId, dirId, filename }) => {
       await fsp.mkdir(`storage/${dirId}`, { recursive: true });
     }
 
-    const res = await fetch(`${API_URL}/files/transfer/storage-server`, {
+    const req = await fetch(`${API_URL}/files/transfer/storage-server`, {
       headers: {
         Authorization: `Bearer ${token}`,
         filePartId,
       },
     });
 
-    await pipeline(res.body, fs.createWriteStream(`storage/${dirId}/${filename}`, { flags: 'a' }));
+    await pipeline(req.body, fs.createWriteStream(`storage/${dirId}/${filename}`, { flags: 'a' }));
 
     socket.emit(filePartId, `ACK ${filePartId}`);
   } catch (err) {

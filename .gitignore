@@ -2,3 +2,4 @@ node_modules
 storage
 nodemon.json
 ecosystem.config.cjs
+.env
