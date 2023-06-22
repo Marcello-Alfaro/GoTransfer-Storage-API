@@ -15,7 +15,7 @@ const socket = io(`${API_URL}${SOCKET_NAMESPACE}`, {
   },
 });
 
-socket.on('connect', () => console.log('Connection to main server established!'));
+socket.on('connect', () => console.log('Connection with main server established!'));
 
 socket.on('alloc-storage-server', async ({ filePartId, dirId, filename }) => {
   try {
