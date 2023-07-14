@@ -41,7 +41,7 @@ socket.on('alloc-storage-server', async ({ filePartId, transferId, filename }) =
     socket.emit(filePartId, `ACK ${filePartId}`);
   } catch (err) {
     console.error(err);
-    await fsp.rm(`storage/${dirId}`, { recursive: true, force: true });
+    await fsp.rm(`storage/${transferId}`, { recursive: true, force: true });
   }
 });
 
