@@ -15,7 +15,12 @@ export default async () => {
     disks: await Promise.all(
       DISKS.disks.map(async (entry) => {
         const { diskPath, size, free } = await checkDiskSpace(entry.label);
-        return { diskId: entry.id, path: diskPath, size, free: Math.floor(free * 0.9) };
+        return {
+          diskId: entry.id,
+          path: entry.path ?? diskPath,
+          size,
+          free: Math.floor(free * 0.9),
+        };
       })
     ),
   };
