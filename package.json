@@ -1,5 +1,5 @@
 {
-  "name": "client",
+  "name": "gotransfer-storage-api",
   "version": "1.0.0",
   "description": "",
   "main": "app.js",
@@ -9,12 +9,15 @@
     "start:dev": "nodemon -r dotenv/config app.js"
   },
   "keywords": [],
-  "author": "",
+  "author": "Marcello",
   "license": "ISC",
   "dependencies": {
+    "check-disk-space": "^3.4.0",
+    "fs-extra": "^11.2.0",
     "jsonwebtoken": "^9.0.0",
     "jszip": "^3.10.1",
     "node-fetch": "^3.2.10",
+    "node-machine-id": "^1.1.12",
     "socket.io-client": "^4.5.2"
   },
   "devDependencies": {

@@ -1,127 +1,144 @@
 import { API_URL, JWT_SECRET, SOCKET_NAMESPACE } from './config/config.js';
 import io from 'socket.io-client';
-import fs from 'fs';
-import fsp from 'fs/promises';
+import fs from 'fs-extra';
 import { pipeline } from 'stream/promises';
 import fetch from 'node-fetch';
 import JSZip from 'jszip';
 import jwt from 'jsonwebtoken';
+import serverinfo from './helpers/serverinfo.js';
 
-console.log('Storage server started');
+try {
+  console.log('Storage server started!');
 
-const token = jwt.sign('SYN', JWT_SECRET);
+  const token = jwt.sign('SYN', JWT_SECRET);
 
-const socket = io(`${API_URL}${SOCKET_NAMESPACE}`, {
-  auth: {
-    token,
-  },
-});
+  const socket = io(`${API_URL}${SOCKET_NAMESPACE}`, {
+    auth: {
+      token,
+    },
+  });
 
-socket.on('connect', () => console.log('Connection with main server established!'));
-
-socket.on('alloc-storage-server', async ({ filePartId, transferId, filename }) => {
-  try {
-    const path = `storage/${transferId}`;
-
+  socket.on('connect', async () => {
     try {
-      await fsp.access(path);
+      socket.emit('server-info', await serverinfo());
+      console.log('Connection with main server established!');
     } catch (err) {
-      await fsp.mkdir(path, { recursive: true });
+      throw err;
     }
+  });
 
-    const response = await fetch(`${API_URL}/files/transfer/storage-server`, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        filePartId,
-      },
-    });
+  socket.on('disconnect', () => console.log('Connection with main server lost'));
 
-    await pipeline(response.body, fs.createWriteStream(`${path}/${filename}`, { flags: 'a' }));
+  socket.on('allocate-transfer', async ({ diskPath, transferId }, res) => {
+    try {
+      await fs.mkdirp(`${diskPath}/storage/${transferId}`);
+      res({ ok: true });
+    } catch (err) {
+      res({ ok: false });
+    }
+  });
 
-    socket.emit(filePartId, `ACK ${filePartId}`);
-  } catch (err) {
-    console.error(err);
-    await fsp.rm(`storage/${transferId}`, { recursive: true, force: true });
-  }
-});
-
-socket.on('get-file', async (data) => {
-  try {
-    const { requestId, single, isfolder, folder, transferId, transfer, fileId } = data;
-
-    if (isfolder) {
-      const zip = new JSZip();
-      const root = zip.folder(folder.name);
-
-      folder.Files.forEach(({ fileId, name, path }) => {
-        root.folder(path).file(name, fs.createReadStream(`storage/${transferId}/${fileId}`));
+  socket.on('handle-file', async ({ fileId, transferId, diskPath }) => {
+    try {
+      const res = await fetch(`${API_URL}/redirect/storage-server`, {
+        headers: {
+          fileId,
+          transferId,
+          authorization: `Bearer ${token}`,
+        },
       });
 
-      const body = zip.generateNodeStream({ streamFiles: true });
+      await pipeline(
+        res.body,
+        fs.createWriteStream(`${diskPath}/storage/${transferId}/${fileId}`, { flags: 'a' })
+      );
 
-      return await fetch(`${API_URL}/files/get-file`, {
+      socket.emit(fileId, 'ok');
+    } catch (err) {
+      console.error(err);
+    }
+  });
+
+  socket.on('fetch-transfer', async (data) => {
+    try {
+      const { type, downloadId, transfer } = data;
+
+      const body = (() => {
+        if (type === 'b5ac9c2b')
+          return fs.createReadStream(
+            `${transfer.Disk.path}/storage/${transfer.transferId}/${transfer.Files[0].fileId}`
+          );
+
+        if (type === '08ad027d') {
+          const zip = new JSZip();
+          const root = zip.folder(transfer.Folders[0].name);
+
+          transfer.Folders[0].Files.forEach(({ fileId, name, path }) => {
+            root
+              .folder(path)
+              .file(
+                name,
+                fs.createReadStream(
+                  `${transfer.Disk.path}/storage/${transfer.transferId}/${fileId}`
+                )
+              );
+          });
+
+          return zip.generateNodeStream({ streamFiles: true });
+        }
+
+        const zip = new JSZip();
+        const root = zip.folder(transfer.title);
+
+        transfer.Files.forEach((file) =>
+          root.file(
+            file.name,
+            fs.createReadStream(
+              `${transfer.Disk.path}/storage/${transfer.transferId}/${file.fileId}`
+            )
+          )
+        );
+
+        transfer.Folders.forEach((folder) => {
+          folder.Files.forEach((folderFile) =>
+            root
+              .folder(folderFile.path)
+              .file(
+                folderFile.name,
+                fs.createReadStream(
+                  `${transfer.Disk.path}/storage/${transfer.transferId}/${folderFile.fileId}`
+                )
+              )
+          );
+        });
+
+        return zip.generateNodeStream({ streamFiles: true });
+      })();
+
+      await fetch(`${API_URL}/redirect/main-server`, {
         method: 'PUT',
         body,
         headers: {
-          requestId,
-          Authorization: `Bearer ${token}`,
+          downloadId,
+          authorization: `Bearer ${token}`,
         },
       });
+    } catch (err) {
+      console.error(err);
     }
+  });
 
-    const body = single
-      ? fs.createReadStream(`storage/${transferId}/${fileId}`)
-      : (() => {
-          const { Files = [], Folders = [] } = transfer;
-          const files = [...Files, ...Folders];
+  socket.on(
+    'remove-transfer',
+    async ({ diskPath, transferId }) => await fs.remove(`${diskPath}/storage/${transferId}`)
+  );
 
-          const zip = new JSZip();
-          const root = zip.folder(transfer.title);
-
-          files.forEach((file) => {
-            if (file?.fileId)
-              return root.file(
-                file.name,
-                fs.createReadStream(`storage/${transferId}/${file.fileId}`)
-              );
-
-            if (file?.folderId) {
-              const rootfolder = root.folder(file.name);
-
-              file.Files.forEach((folderFile) =>
-                rootfolder
-                  .folder(folderFile.path)
-                  .file(
-                    folderFile.name,
-                    fs.createReadStream(`storage/${transferId}/${folderFile.fileId}`)
-                  )
-              );
-            }
-          });
-          return zip.generateNodeStream({ streamFiles: true });
-        })();
-
-    await fetch(`${API_URL}/files/get-file`, {
-      method: 'PUT',
-      body,
-      headers: {
-        requestId,
-        Authorization: `Bearer ${token}`,
-      },
-    });
-  } catch (err) {
-    console.error(err);
-  }
-});
-
-socket.on(
-  'unlink-file',
-  async ({ transferId }) => await fsp.rm(`storage/${transferId}`, { recursive: true, force: true })
-);
-
-socket.on('connect_error', (err) => {
-  console.error(`connect_error due to ${err.message}`);
-});
+  socket.on('connect_error', (err) => {
+    console.error(`connect_error due to ${err.message}`);
+  });
+} catch (err) {
+  console.error(err);
+}
 
 process.on('uncaughtException', (err) => {
   console.error(err);
