@@ -13,11 +13,11 @@ export default async () => {
     memory: os.totalmem(),
     type: os.type(),
     disks: await Promise.all(
-      DISKS.disks.map(async (entry) => {
-        const { diskPath, size, free } = await checkDiskSpace(entry.label);
+      DISKS.map(async (disk) => {
+        const { size, free } = await checkDiskSpace(disk.path);
         return {
-          diskId: entry.id,
-          path: entry.path ?? diskPath,
+          diskId: disk.id,
+          path: disk.path,
           size,
           free: Math.floor(free * 0.9),
         };
