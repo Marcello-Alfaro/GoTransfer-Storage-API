@@ -48,10 +48,7 @@ try {
         },
       });
 
-      await pipeline(
-        res.body,
-        fs.createWriteStream(`${diskPath}/storage/${transferId}/${fileId}`, { flags: 'a' })
-      );
+      await pipeline(res.body, fs.createWriteStream(`${diskPath}/storage/${transferId}/${fileId}`));
 
       socket.emit(fileId, 'ok');
     } catch (err) {
