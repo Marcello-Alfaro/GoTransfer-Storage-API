@@ -1,4 +1,4 @@
-import { API, API_URL, JWT_SECRET, SOCKET_NAMESPACE } from './config/config.js';
+import { API_URL, API_PATH, JWT_SECRET, SOCKET_NAMESPACE } from './config/config.js';
 import io from 'socket.io-client';
 import fs from 'fs-extra';
 import { pipeline } from 'stream/promises';
@@ -11,7 +11,7 @@ try {
   console.log('Storage server started!');
 
   const token = jwt.sign('SYN', JWT_SECRET);
-  const socket = io(`${API}${SOCKET_NAMESPACE}`, {
+  const socket = io(`${API_URL + SOCKET_NAMESPACE}`, {
     auth: {
       token,
     },
@@ -39,7 +39,7 @@ try {
 
   socket.on('handle-file', async ({ fileId, transferId, diskPath }) => {
     try {
-      const res = await fetch(`${API_URL}/redirect/storage-server`, {
+      const res = await fetch(`${API_URL + API_PATH}/redirect/storage-server`, {
         headers: {
           fileId,
           transferId,
@@ -111,7 +111,7 @@ try {
         return zip.generateNodeStream({ streamFiles: true });
       })();
 
-      await fetch(`${API_URL}/redirect/main-server`, {
+      await fetch(`${API_URL + API_PATH}/redirect/main-server`, {
         method: 'PUT',
         body,
         headers: {
