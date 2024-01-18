@@ -1,4 +1,4 @@
-import { API_URL, JWT_SECRET, SOCKET_NAMESPACE } from './config/config.js';
+import { API, API_URL, JWT_SECRET, SOCKET_NAMESPACE } from './config/config.js';
 import io from 'socket.io-client';
 import fs from 'fs-extra';
 import { pipeline } from 'stream/promises';
@@ -11,8 +11,7 @@ try {
   console.log('Storage server started!');
 
   const token = jwt.sign('SYN', JWT_SECRET);
-
-  const socket = io(`${API_URL}${SOCKET_NAMESPACE}`, {
+  const socket = io(`${API}${SOCKET_NAMESPACE}`, {
     auth: {
       token,
     },
