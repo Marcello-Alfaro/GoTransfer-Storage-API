@@ -11,7 +11,8 @@ try {
   console.log('Storage server started!');
 
   const token = jwt.sign('SYN', JWT_SECRET);
-  const socket = io(`${API_URL + SOCKET_NAMESPACE}`, {
+
+  const socket = io(API_URL + SOCKET_NAMESPACE, {
     path: `${API_PATH}.io/`,
     auth: {
       token,
@@ -38,7 +39,7 @@ try {
     }
   });
 
-  socket.on('handle-file', async ({ fileId, transferId, diskPath }) => {
+  socket.on('handle-file', async ({ diskPath, transferId, fileId }) => {
     try {
       const res = await fetch(`${API_URL + API_PATH}/redirect/storage-server`, {
         headers: {
@@ -52,6 +53,7 @@ try {
 
       socket.emit(fileId, 'ok');
     } catch (err) {
+      await fs.remove(`${diskPath}/storage/${transferId}`);
       console.error(err);
     }
   });
