@@ -12,6 +12,7 @@ try {
 
   const token = jwt.sign('SYN', JWT_SECRET);
   const socket = io(`${API_URL + SOCKET_NAMESPACE}`, {
+    path: `/${API_PATH}.io/`,
     auth: {
       token,
     },
