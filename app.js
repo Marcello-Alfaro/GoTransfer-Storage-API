@@ -2,13 +2,13 @@ import { API_URL, API_PATH, JWT_SECRET, SOCKET_NAMESPACE } from './config/config
 import io from 'socket.io-client';
 import fs from 'fs-extra';
 import { pipeline } from 'stream/promises';
-import fetch from 'node-fetch';
+import { Readable } from 'stream';
 import JSZip from 'jszip';
 import jwt from 'jsonwebtoken';
 import serverinfo from './helpers/serverinfo.js';
 
 try {
-  console.log('Storage server started!');
+  console.log(`Server started - Running Node.js version: ${process.version}`);
 
   const token = jwt.sign('SYN', JWT_SECRET);
 
@@ -83,7 +83,7 @@ try {
               );
           });
 
-          return zip.generateNodeStream({ streamFiles: true });
+          return new Readable().wrap(zip.generateNodeStream({ streamFiles: true }));
         }
 
         const zip = new JSZip();
@@ -111,12 +111,13 @@ try {
           );
         });
 
-        return zip.generateNodeStream({ streamFiles: true });
+        return new Readable().wrap(zip.generateNodeStream({ streamFiles: true }));
       })();
 
       await fetch(`${API_URL + API_PATH}/redirect/main-server`, {
         method: 'PUT',
         body,
+        duplex: 'half',
         headers: {
           downloadId,
           authorization: `Bearer ${token}`,
