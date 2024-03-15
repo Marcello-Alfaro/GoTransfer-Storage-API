@@ -2,8 +2,7 @@ import { API_URL, API_PATH, JWT_SECRET, SOCKET_NAMESPACE } from './config/config
 import io from 'socket.io-client';
 import fs from 'fs-extra';
 import { pipeline } from 'stream/promises';
-import { Readable } from 'stream';
-import JSZip from 'jszip';
+import archiver from 'archiver';
 import jwt from 'jsonwebtoken';
 import serverinfo from './helpers/serverinfo.js';
 
@@ -68,50 +67,44 @@ try {
             `${transfer.Disk.path}/storage/${transfer.transferId}/${transfer.Files[0].fileId}`
           );
 
-        if (type === '08ad027d') {
-          const zip = new JSZip();
-          const root = zip.folder(transfer.Folders[0].name);
+        const zip = archiver('zip', { zlib: { level: 0 } });
 
+        if (type === '08ad027d') {
           transfer.Folders[0].Files.forEach(({ fileId, name, path }) => {
-            root
-              .folder(path)
-              .file(
-                name,
-                fs.createReadStream(
-                  `${transfer.Disk.path}/storage/${transfer.transferId}/${fileId}`
-                )
-              );
+            zip.append(
+              fs.createReadStream(`${transfer.Disk.path}/storage/${transfer.transferId}/${fileId}`),
+              { name: `${path}/${name}` }
+            );
           });
 
-          return new Readable().wrap(zip.generateNodeStream({ streamFiles: true }));
+          zip.finalize();
+
+          return zip;
         }
 
-        const zip = new JSZip();
-        const root = zip.folder(transfer.title);
-
         transfer.Files.forEach((file) =>
-          root.file(
-            file.name,
+          zip.append(
             fs.createReadStream(
               `${transfer.Disk.path}/storage/${transfer.transferId}/${file.fileId}`
-            )
+            ),
+            { name: `${transfer.title}/${file.name}` }
           )
         );
 
         transfer.Folders.forEach((folder) => {
           folder.Files.forEach((folderFile) =>
-            root
-              .folder(folderFile.path)
-              .file(
-                folderFile.name,
-                fs.createReadStream(
-                  `${transfer.Disk.path}/storage/${transfer.transferId}/${folderFile.fileId}`
-                )
-              )
+            zip.append(
+              fs.createReadStream(
+                `${transfer.Disk.path}/storage/${transfer.transferId}/${folderFile.fileId}`
+              ),
+              { name: `${transfer.title}/${folderFile.path}/${folderFile.name}` }
+            )
           );
         });
 
-        return new Readable().wrap(zip.generateNodeStream({ streamFiles: true }));
+        zip.finalize();
+
+        return zip;
       })();
 
       await fetch(`${API_URL + API_PATH}/redirect/main-server`, {
