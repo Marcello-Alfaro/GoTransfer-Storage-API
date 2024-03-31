@@ -4,10 +4,10 @@ import fs from 'fs-extra';
 import { pipeline } from 'stream/promises';
 import archiver from 'archiver';
 import jwt from 'jsonwebtoken';
-import serverinfo from './helpers/serverinfo.js';
+import server from './helpers/server.js';
 
 try {
-  console.log(`Server started - Running Node.js version: ${process.version}`);
+  console.log(`Server started - Running Node.js version: ${process.version}\n`);
 
   const token = jwt.sign('SYN', JWT_SECRET);
 
@@ -20,7 +20,9 @@ try {
 
   socket.on('connect', async () => {
     try {
-      socket.emit('server-info', await serverinfo());
+      server.setSocket(socket.id);
+      await socket.emitWithAck('remove-unfinished', server.serverId);
+      socket.emit('server-info', await server.getInfo());
       console.log('Connection with main server established!');
     } catch (err) {
       throw err;
@@ -34,11 +36,11 @@ try {
       await fs.mkdirp(`${diskPath}/storage/${transferId}`);
       res({ ok: true });
     } catch (err) {
-      res({ ok: false });
+      res({ ok: false, err });
     }
   });
 
-  socket.on('handle-file', async ({ diskPath, transferId, fileId }) => {
+  socket.on('handle-file', async ({ transferId, fileId, diskPath }) => {
     try {
       const res = await fetch(`${API_URL + API_PATH}/redirect/storage-server`, {
         headers: {
@@ -70,10 +72,10 @@ try {
         const zip = archiver('zip', { zlib: { level: 0 } });
 
         if (type === '08ad027d') {
-          transfer.Folders[0].Files.forEach(({ fileId, name, path }) => {
+          transfer.Folders[0].Files.forEach(({ fileId, path }) => {
             zip.append(
               fs.createReadStream(`${transfer.Disk.path}/storage/${transfer.transferId}/${fileId}`),
-              { name: `${path}/${name}` }
+              { name: path }
             );
           });
 
@@ -97,7 +99,7 @@ try {
               fs.createReadStream(
                 `${transfer.Disk.path}/storage/${transfer.transferId}/${folderFile.fileId}`
               ),
-              { name: `${transfer.title}/${folderFile.path}/${folderFile.name}` }
+              { name: `${transfer.title}/${folderFile.path}` }
             )
           );
         });
@@ -121,10 +123,14 @@ try {
     }
   });
 
-  socket.on(
-    'remove-transfer',
-    async ({ diskPath, transferId }) => await fs.remove(`${diskPath}/storage/${transferId}`)
-  );
+  socket.on('remove-transfer', async ({ diskPath, transferId }, res) => {
+    try {
+      await fs.remove(`${diskPath}/storage/${transferId}`);
+      res({ ok: true });
+    } catch (err) {
+      res({ ok: false, err });
+    }
+  });
 
   socket.on('connect_error', (err) => {
     console.error(`connect_error due to ${err.message}`);
