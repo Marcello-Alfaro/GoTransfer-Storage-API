@@ -137,6 +137,13 @@ try {
   });
 
   socket.on('connect_error', (err) => logger.error(`Connection error due to ${err.message}`));
+
+  process.on('uncaughtException', (err) => {
+    logger.fatal(err);
+
+    setTimeout(() => process.abort(), 1000).unref();
+    process.exit(1);
+  });
 } catch (err) {
   logger.error(err);
 }
