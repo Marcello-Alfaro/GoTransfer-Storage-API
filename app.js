@@ -1,13 +1,14 @@
 import { API_URL, API_PATH, JWT_SECRET, SOCKET_NAMESPACE } from './config/config.js';
+import server from './helpers/server.js';
+import logger from './helpers/logger.js';
 import io from 'socket.io-client';
 import fs from 'fs-extra';
 import { pipeline } from 'stream/promises';
 import archiver from 'archiver';
 import jwt from 'jsonwebtoken';
-import server from './helpers/server.js';
 
 try {
-  console.log(`Server started - Running Node.js version: ${process.version}\n`);
+  logger.info(`Server started - Running Node.js version: ${process.version}`);
 
   const token = jwt.sign('SYN', JWT_SECRET);
 
@@ -23,13 +24,13 @@ try {
       server.setSocket(socket.id);
       await socket.emitWithAck('remove-unfinished', server.serverId);
       socket.emit('server-info', await server.getInfo());
-      console.log('Connection with main server established!');
+      logger.info('Connection with main server established!');
     } catch (err) {
       throw err;
     }
   });
 
-  socket.on('disconnect', () => console.log('Connection with main server lost'));
+  socket.on('disconnect', () => logger.warn('Connection with main server lost'));
 
   socket.on('allocate-transfer', async ({ diskPath, transferId }, res) => {
     try {
@@ -37,6 +38,7 @@ try {
       res({ ok: true });
     } catch (err) {
       res({ ok: false, err });
+      logger.error(err);
     }
   });
 
@@ -55,7 +57,7 @@ try {
       socket.emit(fileId, 'ok');
     } catch (err) {
       await fs.remove(`${diskPath}/storage/${transferId}`);
-      console.error(err);
+      logger.error(err);
     }
   });
 
@@ -119,7 +121,7 @@ try {
         },
       });
     } catch (err) {
-      console.error(err);
+      logger.error(err);
     }
   });
 
@@ -128,17 +130,13 @@ try {
       await fs.remove(`${diskPath}/storage/${transferId}`);
       res({ ok: true });
     } catch (err) {
+      logger.error(err);
+      if (!res) return;
       res({ ok: false, err });
     }
   });
 
-  socket.on('connect_error', (err) => {
-    console.error(`connect_error due to ${err.message}`);
-  });
+  socket.on('connect_error', (err) => logger.error(`Connection error due to ${err.message}`));
 } catch (err) {
-  console.error(err);
+  logger.error(err);
 }
-
-process.on('uncaughtException', (err) => {
-  console.error(err);
-});
