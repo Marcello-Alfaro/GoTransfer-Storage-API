@@ -127,12 +127,11 @@ try {
 
   socket.on('remove-transfer', async ({ diskPath, transferId }, res) => {
     try {
-      await fs.remove(`${diskPath}/storage/${transferId}`);
-      res({ ok: true });
+      await fs.rm(`${diskPath}/storage/${transferId}`, { recursive: true, force: true });
+      res && res({ ok: true });
     } catch (err) {
       logger.error(err);
-      if (!res) return;
-      res({ ok: false, err });
+      res && res({ ok: false, err });
     }
   });
 
