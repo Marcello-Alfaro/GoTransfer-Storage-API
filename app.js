@@ -30,7 +30,9 @@ try {
     }
   });
 
-  socket.on('disconnect', () => logger.warn('Connection with main server lost'));
+  socket.on('disconnect', (reason) =>
+    logger.warn(`Connection with main server lost due to ${reason}`)
+  );
 
   socket.on('allocate-transfer', async ({ diskPath, transferId }, res) => {
     try {
