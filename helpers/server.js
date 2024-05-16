@@ -3,22 +3,17 @@ import os from 'os';
 import machine from 'node-machine-id';
 import checkDiskSpace from 'check-disk-space';
 
-const serverId = await machine.machineId({ original: true });
+const id = await machine.machineId({ original: true });
 
 class Server {
   constructor() {
-    this.serverId = serverId;
-    this.socketId = null;
+    this.id = id;
     this.name = os.hostname();
     this.arch = os.arch();
     this.cpu = os.cpus()[0].model.trim();
     this.cores = os.cpus().length;
     this.memory = os.totalmem();
     this.type = os.type();
-  }
-
-  setSocket(id) {
-    this.socketId = id;
   }
 
   async getInfo() {
