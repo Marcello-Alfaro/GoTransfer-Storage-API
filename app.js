@@ -3,16 +3,15 @@ import server from './helpers/server.js';
 import logger from './helpers/logger.js';
 import WebSocket from 'ws';
 import fs from 'fs-extra';
-import fetch from 'node-fetch';
+import { fetch } from 'undici';
 import { randomUUID } from 'crypto';
 import EventEmitter from 'events';
-import { Readable } from 'stream';
 import { pipeline } from 'stream/promises';
 import archiver from 'archiver';
 import jwt from 'jsonwebtoken';
 
 try {
-  logger.info(`Server started - Running Node.js version: ${process.version}`);
+  logger.info(`Server started - Running Node.js version ${process.version}`);
 
   const token = jwt.sign({ id: server.id, name: server.name }, JWT_SECRET);
 
@@ -127,7 +126,7 @@ try {
 
               zip.finalize();
 
-              return Readable.wrap(zip);
+              return zip;
             }
 
             transfer.Files.forEach((file) =>
@@ -152,12 +151,13 @@ try {
 
             zip.finalize();
 
-            return Readable.wrap(zip);
+            return zip;
           })();
 
           await fetch(`${API_URL + API_PATH}/redirect/main-server`, {
             method: 'PUT',
             body,
+            duplex: 'half',
             headers: {
               downloadId,
               authorization: `Bearer ${token}`,
