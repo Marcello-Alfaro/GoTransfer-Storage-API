@@ -38,7 +38,6 @@ try {
       try {
         await socket.ack(server.id);
 
-        await socket.sendWithAck({ action: 'fetch-server-info', server: await server.getInfo() });
         logger.info('Connection with main server established!');
       } catch (err) {
         throw err;
@@ -48,6 +47,20 @@ try {
     socket.on('message', async (message) => {
       const data = JSON.parse(message);
       const { action, messageId } = data;
+
+      if (action === 'fetch-server-info') {
+        try {
+          socket.send(
+            JSON.stringify({
+              action: 'server-response',
+              messageId,
+              response: { ok: true, status: 200, server: await server.getInfo() },
+            })
+          );
+        } catch (err) {
+          logger.error(err);
+        }
+      }
 
       if (action === 'allocate-transfer') {
         try {
@@ -76,7 +89,7 @@ try {
         try {
           const { transferId, fileId, diskPath } = data;
 
-          const res = await fetch(`${API_URL + API_PATH}/redirect/storage-server`, {
+          const { body } = await fetch(`${API_URL + API_PATH}/redirect/storage-server`, {
             headers: {
               fileId,
               transferId,
@@ -84,10 +97,7 @@ try {
             },
           });
 
-          await pipeline(
-            res.body,
-            fs.createWriteStream(`${diskPath}/storage/${transferId}/${fileId}`)
-          );
+          await pipeline(body, fs.createWriteStream(`${diskPath}/storage/${transferId}/${fileId}`));
 
           socket.send(
             JSON.stringify({
