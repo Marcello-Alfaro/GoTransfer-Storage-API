@@ -3,9 +3,10 @@ import server from './helpers/server.js';
 import logger from './helpers/logger.js';
 import fs from 'fs-extra';
 import WebSocket from './helpers/ws.js';
-import { fetch } from 'undici';
+import fetch from 'node-fetch';
 import EventEmitter from 'events';
 import { pipeline } from 'stream/promises';
+import { Readable } from 'stream';
 import archiver from 'archiver';
 import jwt from 'jsonwebtoken';
 import ErrorObject from './helpers/errorObject.js';
@@ -133,7 +134,7 @@ try {
 
             zip.finalize();
 
-            return zip;
+            return Readable.from(zip);
           }
 
           transfer.Files.forEach((file) =>
@@ -158,13 +159,12 @@ try {
 
           zip.finalize();
 
-          return zip;
+          return Readable.from(zip);
         })();
 
         await fetch(`${API_URL + API_PATH}/redirect/main-server`, {
           method: 'PUT',
           body,
-          duplex: 'half',
           headers: {
             downloadId,
             authorization: `Bearer ${token}`,
