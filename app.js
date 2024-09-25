@@ -204,7 +204,8 @@ try {
 
   socket.onclose = ({ code }) => logger.warn(`Connection with main server closed due to ${code}`);
 
-  socket.onerror = ({ error: { code } }) => logger.error(`Connection error due to ${code}`);
+  socket.onerror = ({ error: { message, code } }) =>
+    logger.error(`Connection error due to ${message || ''}${code || ''}`);
 
   process.on('uncaughtException', (err) => {
     logger.fatal(err);
