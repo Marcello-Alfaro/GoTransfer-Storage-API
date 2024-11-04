@@ -17,14 +17,11 @@ try {
 
   const eventEmitter = new EventEmitter();
 
-  const socket = new WebSocket(
-    `${/* API_URL */ 'http://localhost:8081' + API_PATH}.uws${SOCKET_NAMESPACE}`,
-    {
-      headers: {
-        authorization: `Bearer ${token}`,
-      },
-    }
-  );
+  const socket = new WebSocket(`${API_URL + API_PATH}.uws${SOCKET_NAMESPACE}`, {
+    headers: {
+      authorization: `Bearer ${token}`,
+    },
+  });
 
   socket.ack = (messageId) =>
     new Promise((res) => eventEmitter.on(messageId, (response) => res(response)));
