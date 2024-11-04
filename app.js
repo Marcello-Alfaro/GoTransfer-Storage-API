@@ -2,7 +2,6 @@ import { API_URL, API_PATH, JWT_SECRET, SOCKET_NAMESPACE } from './config/config
 import server from './helpers/server.js';
 import logger from './helpers/logger.js';
 import fs from 'fs-extra';
-import WebSocket from './helpers/ws.js';
 import fetch from 'node-fetch';
 import EventEmitter from 'events';
 import { pipeline } from 'stream/promises';
@@ -18,11 +17,14 @@ try {
 
   const eventEmitter = new EventEmitter();
 
-  const socket = new WebSocket(`${API_URL + API_PATH}.uws${SOCKET_NAMESPACE}`, {
-    headers: {
-      authorization: `Bearer ${token}`,
-    },
-  });
+  const socket = new WebSocket(
+    `${/* API_URL */ 'http://localhost:8081' + API_PATH}.uws${SOCKET_NAMESPACE}`,
+    {
+      headers: {
+        authorization: `Bearer ${token}`,
+      },
+    }
+  );
 
   socket.ack = (messageId) =>
     new Promise((res) => eventEmitter.on(messageId, (response) => res(response)));

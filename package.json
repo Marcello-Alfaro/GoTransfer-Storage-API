@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "start": "node app.js",
-    "start:dev": "nodemon -r dotenv/config app.js"
+    "start:dev": "node --watch --env-file=.env app.js"
   },
   "keywords": [],
   "author": "Marcello",
@@ -18,13 +18,9 @@
     "jsonwebtoken": "^9.0.2",
     "node-fetch": "^3.3.2",
     "node-machine-id": "^1.1.12",
-    "pino": "^9.4.0",
-    "pino-pretty": "^11.2.2",
+    "pino": "^9.5.0",
+    "pino-pretty": "^11.3.0",
     "reconnecting-websocket": "^4.4.0",
     "ws": "^8.18.0"
-  },
-  "devDependencies": {
-    "dotenv": "^16.4.5",
-    "nodemon": "^3.1.7"
   }
 }
