@@ -204,10 +204,15 @@ try {
     if (action === 'main-server-response') return eventEmitter.emit(messageId, data.response);
   };
 
-  socket.onclose = ({ code }) => logger.warn(`Connection with main server closed due to ${code}`);
+  socket.onclose = ({ code }) => {
+    logger.warn(`Connection with main server closed due to ${code}`);
+    process.exit(1);
+  };
 
-  socket.onerror = ({ error: { message, code } }) =>
+  socket.onerror = ({ error: { message, code } }) => {
     logger.error(`Connection error due to ${message || ''}${code || ''}`);
+    process.exit(1);
+  };
 
   process.on('uncaughtException', (err) => {
     logger.fatal(err);
