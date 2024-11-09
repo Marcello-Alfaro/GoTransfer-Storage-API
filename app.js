@@ -211,12 +211,13 @@ try {
     process.exit(1);
   };
 
-  process.on('uncaughtException', (err) => {
-    logger.fatal(err);
-
-    setTimeout(() => process.abort(), 1000).unref();
-    process.exit(1);
-  });
+  process
+    .on('unhandledRejection', (reason) => logger.error(`Unhandled Promise Rejection ${reason}`))
+    .on('uncaughtException', (err) => {
+      logger.fatal(err);
+      setTimeout(() => process.abort(), 1000).unref();
+      process.exit(1);
+    });
 } catch (err) {
   logger.error(err);
 }
