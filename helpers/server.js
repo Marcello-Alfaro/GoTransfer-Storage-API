@@ -1,25 +1,51 @@
-import { DISKS } from '../config/config.js';
+import { NODE_ENV, DISKS } from '../config/config.js';
 import os from 'os';
+import fs from 'fs-extra';
 import machine from 'node-machine-id';
 import checkDiskSpace from 'check-disk-space';
-
-const id = await machine.machineId({ original: true });
+import logger from './logger.js';
 
 class Server {
-  constructor() {
-    this.id = id;
-    this.name = os.hostname();
-    this.arch = os.arch();
-    this.cpu = os.cpus()[0].model.trim();
-    this.cores = os.cpus().length;
-    this.memory = os.totalmem();
-    this.type = os.type();
-  }
+  id = null;
+  name = os.hostname();
+  arch = os.arch();
+  cpu = os.cpus()[0].model.trim();
+  cores = os.cpus().length;
+  memory = os.totalmem();
+  type = os.type();
+  transfers = [];
 
-  async getInfo() {
-    return {
-      ...this,
-      disks: await Promise.all(
+  async init() {
+    try {
+      this.id = await machine.machineId({ original: true });
+
+      for (const disk of DISKS) {
+        const path = `${disk.path}/storage`;
+        if (!(await fs.pathExists(path))) {
+          await fs.mkdirp(path);
+          continue;
+        }
+
+        this.transfers.push(
+          ...(await fs.readdir(path))
+            .filter((entry) => entry.startsWith('.'))
+            .map((entry) => `${path}/${entry}`)
+        );
+      }
+
+      await Promise.all(
+        this.transfers.map(
+          async (entry) =>
+            await fs.rm(entry, {
+              recursive: true,
+              force: true,
+            })
+        )
+      );
+
+      delete this.transfers;
+
+      this.disks = await Promise.all(
         DISKS.map(async (disk) => {
           const { size, free } = await checkDiskSpace(disk.path);
           return {
@@ -29,8 +55,14 @@ class Server {
             free: Math.floor(free * 0.9),
           };
         })
-      ),
-    };
+      );
+
+      return logger.info(
+        `Server initialized - Running Node.js ${process.version} on ${NODE_ENV} environment.`
+      );
+    } catch (err) {
+      throw err;
+    }
   }
 }
 

@@ -11,7 +11,7 @@ import jwt from 'jsonwebtoken';
 import ErrorObject from './helpers/errorObject.js';
 
 try {
-  logger.info(`Server started - Running Node.js version ${process.version}`);
+  await server.init();
 
   const token = jwt.sign({ id: server.id, name: server.name }, JWT_SECRET);
 
@@ -25,6 +25,15 @@ try {
 
   socket.ack = (messageId) =>
     new Promise((res) => eventEmitter.on(messageId, (response) => res(response)));
+
+  socket.sendResponse = (messageId, response = { ok: true }) =>
+    socket.send(
+      JSON.stringify({
+        action: 'server-response',
+        messageId,
+        response,
+      })
+    );
 
   socket.onopen = async function () {
     try {
@@ -41,19 +50,13 @@ try {
     }
   };
 
-  socket.onmessage = async ({ data: message }) => {
+  socket.onmessage = async function ({ data: message }) {
     const data = JSON.parse(message);
     const { action, messageId } = data;
 
     if (action === 'fetch-server-info') {
       try {
-        socket.send(
-          JSON.stringify({
-            action: 'server-response',
-            messageId,
-            response: { ok: true, status: 200, server: await server.getInfo() },
-          })
-        );
+        this.sendResponse(messageId, server);
       } catch (err) {
         logger.error(err);
       }
@@ -62,22 +65,23 @@ try {
     if (action === 'allocate-transfer') {
       try {
         const { diskPath, transferId } = data;
-        await fs.mkdirp(`${diskPath}/storage/${transferId}`);
-        socket.send(
-          JSON.stringify({
-            action: 'server-response',
-            messageId,
-            response: { ok: true, status: 200 },
-          })
-        );
+        await fs.mkdir(`${diskPath}/storage/.${transferId}`);
+
+        this.sendResponse(messageId);
       } catch (err) {
-        socket.send(
-          JSON.stringify({
-            action: 'server-response',
-            messageId,
-            response: { ok: false, status: 500 },
-          })
-        );
+        this.sendResponse(messageId, { ok: false });
+        logger.error(err);
+      }
+    }
+
+    if (action === 'transfer-complete') {
+      try {
+        const { transferId, diskPath } = data;
+        await fs.rename(`${diskPath}/storage/.${transferId}`, `${diskPath}/storage/${transferId}`);
+
+        this.sendResponse(messageId);
+      } catch (err) {
+        this.sendResponse(messageId, { ok: false });
         logger.error(err);
       }
     }
@@ -94,17 +98,10 @@ try {
           },
         });
 
-        await pipeline(body, fs.createWriteStream(`${diskPath}/storage/${transferId}/${fileId}`));
+        await pipeline(body, fs.createWriteStream(`${diskPath}/storage/.${transferId}/${fileId}`));
 
-        socket.send(
-          JSON.stringify({
-            action: 'server-response',
-            messageId,
-            response: { ok: true, status: 200 },
-          })
-        );
+        this.sendResponse(messageId);
       } catch (err) {
-        await fs.remove(`${data.diskPath}/storage/${data.transferId}`);
         logger.error(err);
       }
     }
@@ -176,25 +173,13 @@ try {
 
     if (action === 'remove-transfer') {
       try {
-        const { diskPath, transferId } = data;
-        await fs.rm(`${diskPath}/storage/${transferId}`, { recursive: true, force: true });
-
-        socket.send(
-          JSON.stringify({
-            action: 'server-response',
-            messageId,
-            response: { ok: true, status: 200 },
-          })
-        );
+        const { diskPath, transferId, aborted = false } = data;
+        await fs.rm(`${diskPath}/storage/${aborted ? '.' : ''}${transferId}`, {
+          recursive: true,
+          force: true,
+        });
       } catch (err) {
         logger.error(err);
-        socket.send(
-          JSON.stringify({
-            action: 'server-response',
-            messageId,
-            response: { ok: false, status: 500 },
-          })
-        );
       }
     }
 
