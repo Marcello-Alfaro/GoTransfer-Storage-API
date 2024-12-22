@@ -2,7 +2,6 @@ import { NODE_ENV, DISKS } from '../config/config.js';
 import os from 'os';
 import fs from 'fs-extra';
 import machine from 'node-machine-id';
-import checkDiskSpace from 'check-disk-space';
 import logger from './logger.js';
 
 class Server {
@@ -13,6 +12,7 @@ class Server {
   cores = os.cpus().length;
   memory = os.totalmem();
   type = os.type();
+  disks = [];
   transfers = [];
 
   async init() {
@@ -45,17 +45,15 @@ class Server {
 
       delete this.transfers;
 
-      this.disks = await Promise.all(
-        DISKS.map(async (disk) => {
-          const { size, free } = await checkDiskSpace(disk.path);
-          return {
-            diskId: disk.id,
-            path: disk.path,
-            size,
-            free: Math.floor(free * 0.9),
-          };
-        })
-      );
+      for (const disk of DISKS) {
+        const { blocks, bavail, bsize } = fs.statfsSync(disk.path);
+        this.disks.push({
+          diskId: disk.id,
+          path: disk.path,
+          size: blocks * bsize,
+          free: Math.floor(bavail * bsize * 0.9),
+        });
+      }
 
       return logger.info(
         `Server initialized - Running Node.js ${process.version} on ${NODE_ENV} environment.`
