@@ -13,11 +13,10 @@
   "license": "ISC",
   "dependencies": {
     "archiver": "^7.0.1",
-    "fs-extra": "^11.2.0",
+    "fs-extra": "^11.3.0",
     "jsonwebtoken": "^9.0.2",
-    "node-fetch": "^3.3.2",
     "node-machine-id": "^1.1.12",
-    "pino": "^9.5.0"
+    "pino": "^9.6.0"
   },
   "devDependencies": {
     "pino-pretty": "^13.0.0"

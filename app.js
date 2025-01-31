@@ -2,10 +2,8 @@ import { API_URL, API_PATH, JWT_SECRET, SOCKET_NAMESPACE } from './config/config
 import server from './helpers/server.js';
 import logger from './helpers/logger.js';
 import fs from 'fs-extra';
-import fetch from 'node-fetch';
 import EventEmitter from 'events';
 import { pipeline } from 'stream/promises';
-import { Readable } from 'stream';
 import archiver from 'archiver';
 import jwt from 'jsonwebtoken';
 import ErrorObject from './helpers/errorObject.js';
@@ -130,7 +128,7 @@ try {
 
             zip.finalize();
 
-            return Readable.from(zip);
+            return zip;
           }
 
           transfer.Files.forEach((file) =>
@@ -155,11 +153,13 @@ try {
 
           zip.finalize();
 
-          return Readable.from(zip);
+          return zip;
         })();
 
         await fetch(`${API_URL + API_PATH}/redirect/main-server`, {
           method: 'PUT',
+          duplex: 'half',
+          redirect: 'error',
           body,
           headers: {
             downloadId,
