@@ -158,9 +158,10 @@ try {
 
         await fetch(`${API_URL + API_PATH}/redirect/main-server`, {
           method: 'PUT',
-          duplex: 'half',
-          redirect: 'error',
           body,
+          duplex: 'half',
+          priority: 'high',
+          redirect: 'error',
           headers: {
             downloadId,
             authorization: `Bearer ${token}`,
