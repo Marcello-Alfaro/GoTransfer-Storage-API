@@ -1,4 +1,4 @@
-import { API_URL, API_PATH, JWT_SECRET, SOCKET_NAMESPACE } from './config/config.js';
+import { API_URL, API_PATH, JWT_SECRET, WS_PATH } from './config/config.js';
 import server from './helpers/server.js';
 import logger from './helpers/logger.js';
 import fs from 'fs-extra';
@@ -15,7 +15,7 @@ try {
 
   const eventEmitter = new EventEmitter();
 
-  const socket = new WebSocket(`${API_URL + API_PATH}.uws${SOCKET_NAMESPACE}`, {
+  const socket = new WebSocket(`${API_URL + API_PATH}.ws${WS_PATH}`, {
     headers: {
       authorization: `Bearer ${token}`,
     },
