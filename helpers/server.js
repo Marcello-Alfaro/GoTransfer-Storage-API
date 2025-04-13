@@ -1,8 +1,7 @@
-import { NODE_ENV, DISKS } from '../config/config.js';
+import { NODE_ENV } from '../config/config.js';
 import os from 'os';
 import fs from 'fs-extra';
 import machine from 'node-machine-id';
-import logger from './logger.js';
 
 class Server {
   id = null;
@@ -19,7 +18,12 @@ class Server {
     try {
       this.id = await machine.machineId({ original: true });
 
-      for (const disk of DISKS) {
+      const disks = JSON.parse(process.env.DISKS);
+
+      if (disks.length === 0)
+        throw new Error('Initialization failed. No disks provided or detected.');
+
+      for (const disk of disks) {
         const path = `${disk.path}/storage`;
         if (!(await fs.pathExists(path))) {
           await fs.mkdirp(path);
@@ -45,7 +49,7 @@ class Server {
 
       delete this.transfers;
 
-      for (const disk of DISKS) {
+      for (const disk of disks) {
         const { blocks, bavail, bsize } = fs.statfsSync(disk.path);
         this.disks.push({
           diskId: disk.id,
@@ -55,9 +59,14 @@ class Server {
         });
       }
 
-      return logger.info(
-        `Server initialized - Running Node.js ${process.version} on ${NODE_ENV} environment.`
-      );
+      console.log('------------------------------------------------------------------');
+      console.log(`GoTransfer-Storage-API started on server ${os.hostname()}`);
+      console.log(`Running Node.js ${process.version} on ${NODE_ENV} environment.`);
+      console.log(`Platform: ${os.platform()} ${os.arch()}`);
+      console.log(`Memory: ${os.totalmem()}`);
+      console.log(`CPU: ${os.cpus()[0].model.trim()}`);
+      console.log(`Disks: ${disks.length}`);
+      console.log('------------------------------------------------------------------');
     } catch (err) {
       throw err;
     }

@@ -1,4 +1,4 @@
-import { API_URL, API_PATH, JWT_SECRET, WS_PATH } from './config/config.js';
+import { API_URL, API_PATH, JWT_SECRET } from './config/config.js';
 import server from './helpers/server.js';
 import logger from './helpers/logger.js';
 import fs from 'fs-extra';
@@ -6,7 +6,6 @@ import EventEmitter from 'events';
 import { pipeline } from 'stream/promises';
 import archiver from 'archiver';
 import jwt from 'jsonwebtoken';
-import ErrorObject from './helpers/errorObject.js';
 
 try {
   await server.init();
@@ -15,7 +14,7 @@ try {
 
   const eventEmitter = new EventEmitter();
 
-  const socket = new WebSocket(`${API_URL + API_PATH}.ws${WS_PATH}`, {
+  const socket = new WebSocket(`${API_URL + API_PATH}.ws/storage-servers`, {
     headers: {
       authorization: `Bearer ${token}`,
     },
@@ -38,9 +37,7 @@ try {
       const { ok } = await this.ack(server.id);
 
       if (!ok)
-        throw new ErrorObject(
-          'Something went wrong while establishing the connection with the server.'
-        );
+        throw new Error('Something went wrong while establishing the connection with the server.');
 
       logger.info('Connection with main server established!');
     } catch (err) {
